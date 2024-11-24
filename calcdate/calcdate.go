@@ -10,17 +10,17 @@ import (
 const ParseDate = "20060102"
 
 func CalcNextDate(now, date, repeat string) (string, error) {
-	// получаю правила повторения задач
+
 	rule, err := ParseRepeatRules(repeat)
 	if err != nil {
 		return "", errors.New("Формат правила повторения не соблюден")
 	}
-	// парсинг полученных дат
+
 	nowTime, dateTime, err := ParsingDates(now, date)
 	if err != nil {
 		return "", errors.New("Некорректный формат даты")
 	}
-	//вычисление дня переноса задачи
+
 	if rule[0] == "d" {
 		resultDate, err := CountDateRepeatDay(rule, nowTime, dateTime)
 		if err != nil {
@@ -75,7 +75,7 @@ func CountDateRepeatDay(rules []string, nowTime, dateTime time.Time) (string, er
 }
 
 func CountDateRepeatRule(nowTime, dateTime time.Time) (string, error) {
-	//определяем високосный год или нет
+
 	ageStringdate := dateTime.Format(ParseDate)
 	ageStringnow := nowTime.Format(ParseDate)
 	resDate, _ := strconv.Atoi(ageStringdate)
