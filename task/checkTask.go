@@ -4,10 +4,8 @@ import (
 	"errors"
 	"time"
 
-	nextdate "final/calcdate"
+	"final/date"
 )
-
-const ParseDate = "20060102"
 
 func (t *Task) Checktitle() error {
 	if t.Title == "" {
@@ -19,21 +17,21 @@ func (t *Task) Checktitle() error {
 func (t *Task) Checkdate() (Task, error) {
 	now := time.Now()
 	if t.Date == "" {
-		t.Date = now.Format(ParseDate)
+		t.Date = now.Format(date.ParseDate)
 		return *t, nil
 	}
 
-	parsedDate, err := time.Parse(ParseDate, t.Date)
+	parsedDate, err := time.Parse(date.ParseDate, t.Date)
 	if err != nil {
 		return *t, errors.New("Неправильный формат даты")
 	}
 
 	if parsedDate.Before(now) {
-		nowStr := now.Format(ParseDate)
+		nowStr := now.Format(date.ParseDate)
 		if t.Repeat == "" {
 			t.Date = nowStr
 		} else if nowStr != t.Date {
-			nextDate, calcErr := nextdate.CalcNextDate(nowStr, t.Date, t.Repeat)
+			nextDate, calcErr := date.CalcNextDate(nowStr, t.Date, t.Repeat)
 			if calcErr != nil {
 				return *t, errors.New("Ошибка вычисления даты")
 			}
@@ -47,8 +45,8 @@ func (t *Task) Checkdate() (Task, error) {
 
 func (t *Task) Countdate() error {
 	if t.Repeat != "" {
-		now := time.Now().Format(ParseDate)
-		nextDate, err := nextdate.CalcNextDate(now, t.Date, t.Repeat)
+		now := time.Now().Format(date.ParseDate)
+		nextDate, err := date.CalcNextDate(now, t.Date, t.Repeat)
 		if err != nil {
 			return errors.New("Ошибка вычисления даты")
 		}
@@ -66,7 +64,7 @@ func (t *Task) CheckId() string {
 
 func (t *Task) CheckRepeate() string {
 	if t.Repeat != "" {
-		if _, err := nextdate.ParseRepeatRules(t.Repeat); err != nil {
+		if _, err := date.ParseRepeatRules(t.Repeat); err != nil {
 			return "Правило повторения указано в неправильном формате"
 		}
 	}

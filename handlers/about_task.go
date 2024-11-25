@@ -6,11 +6,9 @@ import (
 	"net/http"
 	"time"
 
-	"final/calcdate"
+	"final/date"
 	"final/task"
 )
-
-const ParseDate = "20060102"
 
 func writeJSONResponse(w http.ResponseWriter, data interface{}, err error) {
 	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
@@ -137,8 +135,8 @@ func (h *Handlers) MarkTask() http.HandlerFunc {
 				http.Error(w, `{"error": "Ошибка удаления задачи"}`, http.StatusInternalServerError)
 			}
 		} else {
-			now := time.Now().Format(ParseDate)
-			nextDate, calcErr := calcdate.CalcNextDate(now, taskData.Date, taskData.Repeat)
+			now := time.Now().Format(date.ParseDate)
+			nextDate, calcErr := date.CalcNextDate(now, taskData.Date, taskData.Repeat)
 			if calcErr != nil {
 				http.Error(w, `{"error": "Ошибка вычисления следующей даты"}`, http.StatusInternalServerError)
 				return
