@@ -6,7 +6,8 @@ import (
 	"net/http"
 	"time"
 
-	"final/date"
+	nextdate "final/date"
+
 	"final/task"
 )
 
@@ -21,29 +22,32 @@ func writeJSONResponse(w http.ResponseWriter, data interface{}, err error) {
 
 func (h *Handlers) AddTask() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		var taskInput task.Task
-		if err := json.NewDecoder(r.Body).Decode(&taskInput); err != nil {
-			writeJSONResponse(w, nil, err)
-			return
-		}
-
-		if err := taskInput.Checktitle(); err != nil {
-			writeJSONResponse(w, nil, err)
-			return
-		}
-
-		taskMod, err := taskInput.Checkdate()
+		var task task.Task
+		err := json.NewDecoder(r.Body).Decode(&task)
 		if err != nil {
 			writeJSONResponse(w, nil, err)
 			return
 		}
 
-		if err := taskMod.Countdate(); err != nil {
+		err = task.Checktitle()
+		if err != nil {
 			writeJSONResponse(w, nil, err)
 			return
 		}
 
-		id, err := h.TaskStorage.AddTaskToDataBase(taskMod)
+		taskmod, err := task.Checkdate()
+		if err != nil {
+			writeJSONResponse(w, nil, err)
+			return
+		}
+
+		err = taskmod.Countdate()
+		if err != nil {
+			writeJSONResponse(w, nil, err)
+			return
+		}
+
+		id, err := h.TaskStorage.AddTaskToDataBase(taskmod)
 		if err != nil {
 			writeJSONResponse(w, nil, err)
 			return
@@ -56,7 +60,12 @@ func (h *Handlers) AddTask() http.HandlerFunc {
 func (h *Handlers) GetTasks() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		tasks, err := h.TaskStorage.GetTasks()
-		writeJSONResponse(w, map[string]interface{}{"tasks": tasks}, err)
+		if err != nil {
+			writeJSONResponse(w, nil, err)
+			return
+		}
+
+		writeJSONResponse(w, map[string]interface{}{"tasks": tasks}, nil)
 	}
 }
 
@@ -68,47 +77,52 @@ func (h *Handlers) GetTask() http.HandlerFunc {
 			return
 		}
 
-		taskData, err := h.TaskStorage.FindTask(id)
+		task, err := h.TaskStorage.FindTask(id)
 		if err != "" {
 			writeJSONResponse(w, nil, errors.New(err))
 			return
 		}
 
-		writeJSONResponse(w, taskData, nil)
+		writeJSONResponse(w, task, nil)
 	}
 }
 
 func (h *Handlers) EditTask() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		var taskInput task.Task
-		if err := json.NewDecoder(r.Body).Decode(&taskInput); err != nil {
-			writeJSONResponse(w, nil, errors.New("Ошибка десериализации JSON"))
-			return
-		}
-
-		if errMsg := taskInput.CheckId(); errMsg != "" {
-			writeJSONResponse(w, nil, errors.New(errMsg))
-			return
-		}
-
-		if err := taskInput.Checktitle(); err != nil {
-			writeJSONResponse(w, nil, err)
-			return
-		}
-
-		updatedTask, err := taskInput.Checkdate()
+		var task task.Task
+		err := json.NewDecoder(r.Body).Decode(&task)
 		if err != nil {
 			writeJSONResponse(w, nil, err)
 			return
 		}
 
-		if errMsg := updatedTask.CheckRepeate(); errMsg != "" {
-			writeJSONResponse(w, nil, errors.New(errMsg))
+		errstr := task.CheckId()
+		if errstr != "" {
+			writeJSONResponse(w, nil, errors.New(errstr))
 			return
 		}
 
-		if errMsg := h.TaskStorage.UpdateTask(updatedTask); errMsg != "" {
-			writeJSONResponse(w, nil, errors.New(errMsg))
+		err = task.Checktitle()
+		if err != nil {
+			writeJSONResponse(w, nil, err)
+			return
+		}
+
+		task, err = task.Checkdate()
+		if err != nil {
+			writeJSONResponse(w, nil, err)
+			return
+		}
+
+		errstr = task.CheckRepeat()
+		if errstr != "" {
+			writeJSONResponse(w, nil, errors.New(errstr))
+			return
+		}
+
+		errstr = h.TaskStorage.UpdateTask(task)
+		if errstr != "" {
+			writeJSONResponse(w, nil, errors.New(errstr))
 			return
 		}
 
@@ -120,32 +134,38 @@ func (h *Handlers) MarkTask() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id := r.FormValue("id")
 		if id == "" {
-			http.Error(w, `{"error": "Не указан индентификатор"}`, http.StatusBadRequest)
+			writeJSONResponse(w, nil, errors.New("Не указан идентификатор"))
 			return
 		}
 
-		taskData, err := h.TaskStorage.FindTask(id)
+		task, err := h.TaskStorage.FindTask(id)
 		if err != "" {
-			http.Error(w, `{"error": "Задача не найдена"}`, http.StatusInternalServerError)
+			writeJSONResponse(w, nil, errors.New("Задача не найдена"))
 			return
 		}
 
-		if taskData.Repeat == "" {
-			if err := h.TaskStorage.DeleteTask(id); err != "" {
-				http.Error(w, `{"error": "Ошибка удаления задачи"}`, http.StatusInternalServerError)
+		if task.Repeat == "" {
+			err = h.TaskStorage.DeleteTask(id)
+			if err != "" {
+				writeJSONResponse(w, nil, errors.New("Ошибка удаления задачи"))
+				return
 			}
 		} else {
-			now := time.Now().Format(date.ParseDate)
-			nextDate, calcErr := date.CalcNextDate(now, taskData.Date, taskData.Repeat)
-			if calcErr != nil {
-				http.Error(w, `{"error": "Ошибка вычисления следующей даты"}`, http.StatusInternalServerError)
+			now := time.Now()
+			timeNow := now.Format(nextdate.ParseDate)
+			date, errnotstr := nextdate.CalcNextDate(timeNow, task.Date, task.Repeat)
+			if errnotstr != nil {
+				writeJSONResponse(w, nil, errors.New("Ошибка вычисления следующей даты"))
 				return
 			}
-			if err := h.TaskStorage.UpdateTaskDate(nextDate, id); err != "" {
-				http.Error(w, `{"error": "Ошибка обновления задачи"}`, http.StatusInternalServerError)
+
+			err = h.TaskStorage.UpdateTaskDate(date, id)
+			if err != "" {
+				writeJSONResponse(w, nil, errors.New("Ошибка обновления задачи"))
 				return
 			}
 		}
+
 		writeJSONResponse(w, map[string]interface{}{}, nil)
 	}
 }
@@ -154,12 +174,13 @@ func (h *Handlers) DeleteTask() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id := r.URL.Query().Get("id")
 		if id == "" {
-			http.Error(w, `{"error": "Не указан индентификатор"}`, http.StatusBadRequest)
+			writeJSONResponse(w, nil, errors.New("Не указан идентификатор"))
 			return
 		}
 
-		if err := h.TaskStorage.DeleteTask(id); err != "" {
-			http.Error(w, `{"error": "Ошибка удаления задачи"}`, http.StatusInternalServerError)
+		err := h.TaskStorage.DeleteTask(id)
+		if err != "" {
+			writeJSONResponse(w, nil, errors.New("Ошибка удаления задачи"))
 			return
 		}
 

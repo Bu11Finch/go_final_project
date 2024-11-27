@@ -10,7 +10,6 @@ import (
 const ParseDate = "20060102"
 
 func CalcNextDate(now, date, repeat string) (string, error) {
-
 	rule, err := ParseRepeatRules(repeat)
 	if err != nil {
 		return "", errors.New("Формат правила повторения не соблюден")
@@ -75,7 +74,6 @@ func CountDateRepeatDay(rules []string, nowTime, dateTime time.Time) (string, er
 }
 
 func CountDateRepeatRule(nowTime, dateTime time.Time) (string, error) {
-
 	ageStringdate := dateTime.Format(ParseDate)
 	ageStringnow := nowTime.Format(ParseDate)
 	resDate, _ := strconv.Atoi(ageStringdate)

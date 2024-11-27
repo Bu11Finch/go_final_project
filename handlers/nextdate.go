@@ -9,13 +9,16 @@ func (h *Handlers) GetnextDateHandler(w http.ResponseWriter, r *http.Request) {
 	nowStr := r.FormValue("now")
 	dateStr := r.FormValue("date")
 	repeat := r.FormValue("repeat")
-
-	_, err := date.CalcNextDate(nowStr, dateStr, repeat)
+	if repeat == "" || nowStr == "" || dateStr == "" {
+		http.Error(w, "Указаны некорректные данные в запросе", http.StatusBadRequest)
+		return
+	}
+	nextdate, err := date.CalcNextDate(nowStr, dateStr, repeat)
 	if err != nil {
 		http.Error(w, "Ошибка вычисления даты", http.StatusBadRequest)
 		return
 	}
 
-	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	w.Write([]byte(nextdate))
 
 }
